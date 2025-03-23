@@ -1,4 +1,10 @@
 #include "Huffman.h"
+#include <string>
+#include <map>
+#include <queue>
+#include <functional>
+#include <vector>
+#include <set>
 using namespace std;
 /*
 
@@ -53,20 +59,24 @@ void deleteTree(EncodingTreeNode* tree) {
  * second tree as the one subtree.
  */
 EncodingTreeNode* huffmanTreeFor(const string& str) {
-    if(str.size() == 0 || freqMap.size() < 2){
-        error("man！这不是霍夫曼！")
+    if(str.size() == 0){
+        error("man!这不是霍夫曼!");
     }
     
     //统计每个字符出现的次数
-    Map<char, int> freq;
+    map<char, int> freq;
     for(char ch: str){
         freq[ch]++;
+    }
+    
+    if(freq.size() < 2){
+        error("man!这不是霍夫曼!");
     }
 
     PriorityQueue<EncodingTreeNode*> pq;
 
     //将每个字符作为一个叶子节点加入到优先队列中
-    for(char ch: freq){
+    for(char ch: freq | views::keys){
         EncodingTreeNode *node = new EncodingTreeNode{ch, nullptr, nullptr};
         pq.enqueue(node, freq[ch]);
     }
@@ -95,10 +105,27 @@ EncodingTreeNode* huffmanTreeFor(const string& str) {
  * was encoded correctly, there are no stray bits in the Queue, etc.
  */
 string decodeText(Queue<Bit>& bits, EncodingTreeNode* tree) {
-    /* TODO: Delete this comment and the next few lines, then implement this. */
-    (void) bits;
-    (void) tree;
-    return "";
+    string result = "";
+    EncodingTreeNode* current = tree;
+    
+    while(!bits.isEmpty()){
+        Bit bit = bits.dequeue();
+        
+        //根据比特决定走向左子树还是右子树
+        if(bit == 0){
+            current = current->zero;
+        }else{ // bit == 1
+            current = current->one;
+        }
+        
+        // 如果到达叶节点
+        if(current->zero == nullptr && current->one == nullptr){
+            result += current->ch; // 添加该字符到结果中
+            current = tree;        // 重置到根节点继续解码
+        }
+    }
+    
+    return result;
 }
 
 /**
@@ -110,10 +137,69 @@ string decodeText(Queue<Bit>& bits, EncodingTreeNode* tree) {
  * characters that make up the input string.
  */
 Queue<Bit> encodeText(const string& str, EncodingTreeNode* tree) {
-    /* TODO: Delete this comment and the next few lines, then implement this. */
-    (void) str;
-    (void) tree;
-    return {};
+    Queue<Bit> result;
+    map<char, Vector<Bit>> encodingMap; //缓存一下字符编码
+    
+    // 对每个字符进行编码
+    for(char ch : str){
+        //如果已经有此字符的编码，直接用
+        if(encodingMap.find(ch) != encodingMap.end()){
+            //加到结果里面
+            for(Bit bit : encodingMap[ch]){
+                result.enqueue(bit);
+            }
+        }else{
+            //找到该字符在树中的编码
+            Vector<Bit> path;
+            
+            //用递归找字符编码
+            bool found = false;
+            
+            //从当前节点开始找到字符编码路径
+            function<void(EncodingTreeNode*, Vector<Bit>&)> findCharPath = 
+                [&](EncodingTreeNode* node, Vector<Bit>& currentPath){
+                    //如果已找到，不再继续搜索
+                    if(found){
+                        return;
+                    }
+                    
+                    // 叶节点，检查是否是目标字符
+                    if(node->zero == nullptr && node->one == nullptr){
+                        if(node->ch == ch){
+                            found = true;
+                            path = currentPath; //保存编码路径
+                        }
+                        return;
+                    }
+                    
+                    //搜索左子树(0)
+                    if(node->zero != nullptr && !found){
+                        currentPath.add(0);
+                        findCharPath(node->zero, currentPath);
+                        if (!found) currentPath.remove(currentPath.size() - 1);
+                    }
+                    
+                    //搜索右子树(1)
+                    if(node->one != nullptr && !found){
+                        currentPath.add(1);
+                        findCharPath(node->one, currentPath);
+                        if (!found) currentPath.remove(currentPath.size() - 1);
+                    }
+                };
+            
+            Vector<Bit> currentPath;
+            findCharPath(tree, currentPath);
+            
+            //找到编码路径
+            encodingMap[ch] = path;
+            
+            //添加到结果里面来
+            for(Bit bit : path){
+                result.enqueue(bit);
+            }
+        }
+    }
+    return result;
 }
 
 /**
@@ -124,10 +210,29 @@ Queue<Bit> encodeText(const string& str, EncodingTreeNode* tree) {
  * or bits in them, etc.
  */
 EncodingTreeNode* decodeTree(Queue<Bit>& bits, Queue<char>& leaves) {
-    /* TODO: Delete this comment and the next few lines, then implement this. */
-    (void) bits;
-    (void) leaves;
-    return nullptr;
+    
+    if(bits.isEmpty()){
+        error("Man!这不是霍夫曼树!");
+    }
+    
+    //读取下一个比特决定是叶节点还是内部节点
+    Bit bit = bits.dequeue();
+    
+    //bit是0,是一个叶节点
+    if(bit == 0){
+        if(leaves.isEmpty()){
+            error("叶子为空");
+        }
+        char ch = leaves.dequeue();
+        return new EncodingTreeNode{ch, nullptr, nullptr};
+    }
+    //bit是1.是一个内部节点
+    else{
+        // 递归构建左子树和右子树
+        EncodingTreeNode* zero = decodeTree(bits, leaves);
+        EncodingTreeNode* one = decodeTree(bits, leaves);
+        return new EncodingTreeNode{' ', zero, one};
+    }
 }
 
 /**
@@ -141,10 +246,16 @@ EncodingTreeNode* decodeTree(Queue<Bit>& bits, Queue<char>& leaves) {
  * the leaves matter, etc.
  */
 void encodeTree(EncodingTreeNode* tree, Queue<Bit>& bits, Queue<char>& leaves) {
-    /* TODO: Delete this comment and the next few lines, then implement this. */
-    (void) tree;
-    (void) bits;
-    (void) leaves;
+    if(tree->zero == nullptr && tree->one == nullptr){
+        bits.enqueue(0); 
+        leaves.enqueue(tree->ch); 
+    }else{
+        bits.enqueue(1);
+        
+        //递归处理左子树和右子树
+        encodeTree(tree->zero, bits, leaves);
+        encodeTree(tree->one, bits, leaves);
+    }
 }
 
 /**
@@ -155,9 +266,37 @@ void encodeTree(EncodingTreeNode* tree, Queue<Bit>& bits, Queue<char>& leaves) {
  * fewer than two distinct characters in the input string.
  */
 HuffmanResult compress(const string& text) {
-    /* TODO: Delete this comment and the next few lines, then implement this. */
-    (void) text;
-    return {};
+    //验证输入
+    if(text.empty()){
+        error("文本为空,重来!");
+    }
+    
+    // 统计不同字符的数量
+    set<char> uniqueChars;
+    for(char ch : text){
+        uniqueChars.insert(ch);
+    }
+    
+    if(uniqueChars.size() < 2){
+        error("压缩要两种不同的字符噢");
+    }
+    
+    //构建霍夫曼树
+    EncodingTreeNode* tree = huffmanTreeFor(text);
+    
+    //结果结构
+    HuffmanResult result;
+    
+    //编码树结构到result
+    encodeTree(tree, result.treeBits, result.treeLeaves);
+    
+    //编码文本到result
+    result.messageBits = encodeText(text, tree);
+    
+    //清理内存
+    deleteTree(tree);
+    
+    return result;
 }
 
 /**
@@ -171,9 +310,16 @@ HuffmanResult compress(const string& text) {
  * implementation of compress.
  */
 string decompress(HuffmanResult& file) {
-    /* TODO: Delete this comment and the next few lines, then implement this. */
-    (void) file;
-    return "";
+    //构建树
+    EncodingTreeNode* tree = decodeTree(file.treeBits, file.treeLeaves);
+    
+    //解码消息
+    string result = decodeText(file.messageBits, tree);
+    
+    //清理内存
+    deleteTree(tree);
+    
+    return result;
 }
 
 
