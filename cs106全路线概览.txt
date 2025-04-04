@@ -1,0 +1,7 @@
+配环境之类的准备工作：
+https://kv6qy98aabe.feishu.cn/wiki/JTpqwDYMQisMufk8GWvclumRnld
+
+代码标准https://web.stanford.edu/class/archive/cs/cs106b/cs106b.1224/resources/style_guide.html
+作业地址
+https://web.stanford.edu/class/archive/cs/cs106b/cs106b.1224/assignments/a8/
+（改后面的a几就可以换不同的lab）
